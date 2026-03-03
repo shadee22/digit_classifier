@@ -1,0 +1,85 @@
+name: Auto Create PR
+
+on:
+  push:
+    branches:
+      - 'claude/explore-repo-overview-CD5UV'
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Create Pull Request
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:claude/explore-repo-overview-CD5UV`,
+              base: 'main',
+              state: 'open'
+            });
+            
+            if (prs.length > 0) {
+              console.log(`PR already exists: ${prs[0].html_url}`);
+              return;
+            }
+            
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'feat: Model Persistence + Prediction CLI',
+              head: 'claude/explore-repo-overview-CD5UV',
+              base: 'main',
+              body: `## Summary
+
+This PR introduces the full SDLC pipeline for the digit classifier project, implementing model persistence, a prediction CLI, and all foundational infrastructure.
+
+## SDLC Agents Used
+
+| Agent | Task |
+|---|---|
+| Architect | System design, TECH_PLAN.md, module contracts |
+| Backend Dev | model_utils.py (save/load), predict.py CLI |
+| ML Engineer | train.py (CNN training loop, MNIST, checkpointing) |
+| QA Engineer | Manual test plan, edge case identification |
+| DevOps | requirements.txt, project structure |
+| Tech Writer | README updates with usage instructions |
+
+## Changes
+
+- \`model_utils.py\` - Save and load trained model weights
+- \`predict.py\` - CLI for running inference on new digit images
+- \`train.py\` - Full CNN training script with MNIST dataset
+- \`requirements.txt\` - Pinned dependencies
+- \`README.md\` - Updated with setup and usage instructions
+- \`TECH_PLAN.md\` - Detailed technical plan with function signatures
+
+## Usage
+
+\`\`\`bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Train the model
+python train.py
+
+# Run prediction on an image
+python predict.py --image path/to/digit.png
+\`\`\`
+
+## Test Plan
+
+- [ ] \`python train.py\` completes without errors and saves model checkpoint
+- [ ] \`python predict.py --image <path>\` returns a digit prediction (0-9)
+- [ ] \`model_utils.save_model()\` creates a \`.pth\` file
+- [ ] \`model_utils.load_model()\` restores model and produces same predictions
+- [ ] Requirements install cleanly in a fresh virtual environment`
+            });
+            
+            console.log(`PR created: ${pr.html_url}`);
