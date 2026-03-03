@@ -1,0 +1,16 @@
+name: Auto Create PR
+on:
+  push:
+    branches: ['claude/**']
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Create PR
+        uses: repo-sync/pull-request@v2
+        with:
+          source_branch: ${{ github.ref_name }}
+          destination_branch: main
+          pr_title: "feat: Model Persistence + Prediction CLI"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
