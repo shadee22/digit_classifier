@@ -12,76 +12,22 @@ permissions:
 jobs:
   fix-pr:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      OWNER: ${{ github.repository_owner }}
     steps:
       - name: Fix PR via REST API
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Find the open PR
           PR_NUMBER=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&head=${{ github.repository_owner }}:claude/explore-repo-overview-CD5UV" \
+            "https://api.github.com/repos/${REPO}/pulls?state=open&head=${OWNER}:claude/explore-repo-overview-CD5UV" \
             | jq -r '.[0].number // empty')
-          
           echo "Found PR number: $PR_NUMBER"
-          
-          BODY='## Summary
-
-This PR introduces the full SDLC pipeline for the digit classifier project, implementing model persistence, a prediction CLI, and all foundational infrastructure.
-
-## SDLC Agents Used
-
-| Agent | Task |
-|---|---|
-| Architect | System design, TECH_PLAN.md, module contracts |
-| Backend Dev | model_utils.py (save/load), predict.py CLI |
-| ML Engineer | train.py (CNN training loop, MNIST, checkpointing) |
-| QA Engineer | Manual test plan, edge case identification |
-| DevOps | requirements.txt, project structure |
-| Tech Writer | README updates with usage instructions |
-
-## Changes
-
-- `model_utils.py` - Save and load trained model weights
-- `predict.py` - CLI for running inference on new digit images
-- `train.py` - Full CNN training script with MNIST dataset
-- `requirements.txt` - Pinned dependencies
-- `README.md` - Updated with setup and usage instructions
-- `TECH_PLAN.md` - Detailed technical plan with function signatures
-
-## Usage
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Train the model
-python train.py
-
-# Run prediction on an image
-python predict.py --image path/to/digit.png
-```
-
-## Test Plan
-
-- [ ] `python train.py` completes without errors and saves model checkpoint
-- [ ] `python predict.py --image <path>` returns a digit prediction (0-9)
-- [ ] `model_utils.save_model()` creates a `.pth` file
-- [ ] `model_utils.load_model()` restores model and produces same predictions
-- [ ] Requirements install cleanly in a fresh virtual environment'
-
           if [ -n "$PR_NUMBER" ]; then
             curl -s -X PATCH \
               -H "Authorization: token $GH_TOKEN" \
               -H "Content-Type: application/json" \
-              -d "{\"title\": \"feat: Model Persistence + Prediction CLI\", \"body\": $(echo "$BODY" | jq -R -s '.')}" \
-              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER"
+              -d '{"title":"feat: Model Persistence + Prediction CLI","body":"## Summary\n\nThis PR introduces model persistence, prediction CLI, and SDLC pipeline infrastructure.\n\n## Changes\n\n- `model_utils.py` - Save/load model weights\n- `predict.py` - Prediction CLI\n- `train.py` - CNN training script\n- `requirements.txt` - Dependencies\n- `README.md` - Updated docs\n\n## Test Plan\n\n- [ ] `python train.py` saves checkpoint\n- [ ] `python predict.py --image <path>` returns digit (0-9)\n- [ ] Requirements install in fresh venv"}' \
+              "https://api.github.com/repos/${REPO}/pulls/${PR_NUMBER}"
             echo "Updated PR #$PR_NUMBER"
-          else
-            # Create a new PR
-            curl -s -X POST \
-              -H "Authorization: token $GH_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d "{\"title\": \"feat: Model Persistence + Prediction CLI\", \"head\": \"claude/explore-repo-overview-CD5UV\", \"base\": \"main\", \"body\": $(echo "$BODY" | jq -R -s '.')}" \
-              "https://api.github.com/repos/${{ github.repository }}/pulls"
-            echo "Created new PR"
           fi
