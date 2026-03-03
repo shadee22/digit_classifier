@@ -1,0 +1,33 @@
+name: Fix PR Title and Body
+
+on:
+  push:
+    branches:
+      - 'claude/explore-repo-overview-CD5UV'
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  fix-pr:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      OWNER: ${{ github.repository_owner }}
+    steps:
+      - name: Fix PR via REST API
+        run: |
+          PR_NUMBER=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${REPO}/pulls?state=open&head=${OWNER}:claude/explore-repo-overview-CD5UV" \
+            | jq -r '.[0].number // empty')
+          echo "Found PR number: $PR_NUMBER"
+          if [ -n "$PR_NUMBER" ]; then
+            curl -s -X PATCH \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"title":"feat: Model Persistence + Prediction CLI","body":"## Summary\n\nThis PR introduces model persistence, prediction CLI, and SDLC pipeline infrastructure.\n\n## Changes\n\n- `model_utils.py` - Save/load model weights\n- `predict.py` - Prediction CLI\n- `train.py` - CNN training script\n- `requirements.txt` - Dependencies\n- `README.md` - Updated docs\n\n## Test Plan\n\n- [ ] `python train.py` saves checkpoint\n- [ ] `python predict.py --image <path>` returns digit (0-9)\n- [ ] Requirements install in fresh venv"}' \
+              "https://api.github.com/repos/${REPO}/pulls/${PR_NUMBER}"
+            echo "Updated PR #$PR_NUMBER"
+          fi
